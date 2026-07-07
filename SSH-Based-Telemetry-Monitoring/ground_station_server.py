@@ -1,7 +1,7 @@
 import sys
-from ccsds_packet import parse_ccsds_packet
+from ccsds_packets import parse_ccsds_packet
 
-LOG_FILE = "/home/pc1/telemetry_packets.bin"
+LOG_FILE = "telemetry_packets.bin"
 
 def read_all_packets():
     packets = []

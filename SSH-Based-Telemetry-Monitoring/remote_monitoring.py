@@ -1,5 +1,5 @@
 import subprocess, json
-from ccsds_packet import parse_ccsds_packet  # not strictly needed here since PC1 already parsed
+from ccsds_packets import parse_ccsds_packet  # not strictly needed here since PC1 already parsed
 
 PC1_IP = "203.0.113.10"
 PC1_USER = "pc1_user"
