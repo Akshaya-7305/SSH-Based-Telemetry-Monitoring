@@ -1,88 +1,75 @@
-{
- "cells": [
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "id": "ca6fec71",
-   "metadata": {
-    "vscode": {
-     "languageId": "plaintext"
-    }
-   },
-   "outputs": [],
-   "source": [
-    "#include <Wire.h>\n",
-    "#include <Adafruit_MPU6050.h>\n",
-    "#include <Adafruit_Sensor.h>\n",
-    "#include <DHT.h>\n",
-    "\n",
-    "#define DHTPIN D4          // GPIO2 on NodeMCU\n",
-    "#define DHTTYPE DHT11\n",
-    "\n",
-    "DHT dht(DHTPIN, DHTTYPE);\n",
-    "Adafruit_MPU6050 mpu;\n",
-    "\n",
-    "void setup() {\n",
-    "\n",
-    "  Serial.begin(115200);\n",
-    "\n",
-    "  Wire.begin();\n",
-    "\n",
-    "  dht.begin();\n",
-    "\n",
-    "  if (!mpu.begin()) {\n",
-    "    Serial.println(\"MPU6050 not found!\");\n",
-    "    while (1);\n",
-    "  }\n",
-    "\n",
-    "  Serial.println(\"Satellite Telemetry Started\");\n",
-    "}\n",
-    "\n",
-    "void loop() {\n",
-    "\n",
-    "  float temperature = dht.readTemperature();\n",
-    "  float humidity = dht.readHumidity();\n",
-    "\n",
-    "  sensors_event_t accel, gyro, temp;\n",
-    "\n",
-    "  mpu.getEvent(&accel, &gyro, &temp);\n",
-    "\n",
-    "  Serial.print(\"Temperature:\");\n",
-    "  Serial.print(temperature);\n",
-    "  Serial.print(\" C\");\n",
-    "\n",
-    "  Serial.print(\" | Humidity:\");\n",
-    "  Serial.print(humidity);\n",
-    "  Serial.print(\" %\");\n",
-    "\n",
-    "  Serial.print(\" | AccX:\");\n",
-    "  Serial.print(accel.acceleration.x);\n",
-    "\n",
-    "  Serial.print(\" | AccY:\");\n",
-    "  Serial.print(accel.acceleration.y);\n",
-    "\n",
-    "  Serial.print(\" | AccZ:\");\n",
-    "  Serial.print(accel.acceleration.z);\n",
-    "\n",
-    "  Serial.print(\" | GyroX:\");\n",
-    "  Serial.print(gyro.gyro.x);\n",
-    "\n",
-    "  Serial.print(\" | GyroY:\");\n",
-    "  Serial.print(gyro.gyro.y);\n",
-    "\n",
-    "  Serial.print(\" | GyroZ:\");\n",
-    "  Serial.println(gyro.gyro.z);\n",
-    "\n",
-    "  delay(2000);\n",
-    "}"
-   ]
-  }
- ],
- "metadata": {
-  "language_info": {
-   "name": "python"
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 5
+#include <Wire.h>
+#include <DHT.h>
+
+#define DHTPIN 2
+#define DHTTYPE DHT11
+
+DHT dht(DHTPIN, DHTTYPE);
+
+// MPU6050 I2C Address
+const byte MPU = 0x68;
+
+void setup() {
+  Serial.begin(9600);
+  Wire.begin();
+
+  // Wake up MPU6050
+  Wire.beginTransmission(MPU);
+  Wire.write(0x6B);
+  Wire.write(0);
+  Wire.endTransmission(true);
+
+  dht.begin();
+
+  Serial.println("Satellite Telemetry Started");
+}
+
+void loop() {
+
+  float temperature = dht.readTemperature();
+  float humidity = dht.readHumidity();
+
+  // Read accelerometer and gyroscope
+  Wire.beginTransmission(MPU);
+  Wire.write(0x3B);
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU, (uint8_t)14);
+
+  int16_t AcX = Wire.read() << 8 | Wire.read();
+  int16_t AcY = Wire.read() << 8 | Wire.read();
+  int16_t AcZ = Wire.read() << 8 | Wire.read();
+
+  // Skip temperature bytes
+  Wire.read();
+  Wire.read();
+
+  int16_t GyX = Wire.read() << 8 | Wire.read();
+  int16_t GyY = Wire.read() << 8 | Wire.read();
+  int16_t GyZ = Wire.read() << 8 | Wire.read();
+
+  Serial.print("TEMP:");
+  Serial.print(temperature);
+
+  Serial.print(", HUM:");
+  Serial.print(humidity);
+
+  Serial.print(", ACCX:");
+  Serial.print(AcX);
+
+  Serial.print(", ACCY:");
+  Serial.print(AcY);
+
+  Serial.print(", ACCZ:");
+  Serial.print(AcZ);
+
+  Serial.print(", GYRX:");
+  Serial.print(GyX);
+
+  Serial.print(", GYRY:");
+  Serial.print(GyY);
+
+  Serial.print(", GYRZ:");
+  Serial.println(GyZ);
+
+  delay(2000);
 }
