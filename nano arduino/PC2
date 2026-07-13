@@ -1,0 +1,89 @@
+Cell 1 — setup:
+python%matplotlib inline
+import subprocess, struct, hmac, hashlib, json
+import matplotlib.pyplot as plt
+
+Cell 2 — CCSDS + HMAC functions (paste ccsds_packet.py contents directly):
+SECRET_KEY = b"replace_this_with_a_strong_shared_secret_32bytes"
+
+def build_ccsds_packet(apid, seq_count, payload_dict):
+    payload = json.dumps(payload_dict).encode()
+    pkt_len = len(payload) - 1
+    version_type_sec = (0 << 13) | (0 << 12) | (0 << 11) | (apid & 0x7FF)
+    seq_flags_count = (0b11 << 14) | (seq_count & 0x3FFF)
+    primary_header = struct.pack(">HHH", version_type_sec, seq_flags_count, pkt_len)
+    packet_body = primary_header + payload
+    digest = hmac.new(SECRET_KEY, packet_body, hashlib.sha256).digest()
+    return packet_body + digest
+
+def parse_ccsds_packet(raw):
+    body, digest = raw[:-32], raw[-32:]
+    expected = hmac.new(SECRET_KEY, body, hashlib.sha256).digest()
+    if not hmac.compare_digest(digest, expected):
+        raise ValueError("HMAC verification failed — packet rejected")
+    version_type_sec, seq_flags_count, pkt_len = struct.unpack(">HHH", body[:6])
+    apid = version_type_sec & 0x7FF
+    seq_count = seq_flags_count & 0x3FFF
+    payload = json.loads(body[6:].decode())
+    return {"apid": apid, "seq_count": seq_count, "payload": payload}
+
+Cell 3 — fetch latest telemetry from PC1:
+PC1_IP = "192.168.1.50"
+PC1_USER = "pc1_user"
+
+def get_latest_telemetry():
+    result = subprocess.run(
+        ["ssh", f"{PC1_USER}@{PC1_IP}", "python3 /home/pc1_user/ground_station_server.py --latest"],
+        capture_output=True, text=True
+    )
+    return result.stdout.strip() if result.returncode == 0 else result.stderr.strip()
+
+print(get_latest_telemetry())
+
+Cell 4 — pull the full log:
+pythonLOCAL_FILE = "telemetry_packets_pc2_copy.bin"
+subprocess.run(["scp", f"{PC1_USER}@{PC1_IP}:/home/pc1_user/telemetry_packets.bin", LOCAL_FILE])
+print("Downloaded.")
+
+Cell 5 — decode and plot inline:
+def read_all_packets():
+    packets = []
+    with open(LOCAL_FILE, "rb") as f:
+        data = f.read()
+    i = 0
+    while i < len(data):
+        pkt_len = int.from_bytes(data[i:i+2], "big")
+        raw = data[i+2:i+2+pkt_len]
+        packets.append(parse_ccsds_packet(raw))
+        i += 2 + pkt_len
+    return packets
+
+packets = read_all_packets()
+temps = [p["payload"]["temperature_C"] for p in packets]
+humidity = [p["payload"]["humidity_percent"] for p in packets]
+
+plt.plot(temps, label="Temperature (°C)")
+plt.plot(humidity, label="Humidity (%)")
+plt.xlabel("Sample number")
+plt.ylabel("Value")
+plt.title("Satellite Telemetry (via PC1 Ground Station)")
+plt.legend()
+plt.show()
+
+
+SSH commands from PC2 to access PC1 — single line each
+One-time: passwordless login setup (recommended, avoids password prompts):
+ssh-keygen -t ed25519
+ssh-copy-id pc1_user@192.168.1.50
+Test the connection:
+bashssh pc1_user@192.168.1.50 "echo Connected to $(hostname)"
+Login into PC1's shell directly (full remote access):
+bashssh pc1_user@192.168.1.50
+Run the latest telemetry fetch remotely, one line:
+bashssh pc1_user@192.168.1.50 "python3 /home/pc1_user/ground_station_server.py --latest"
+Run your PC2 script instead (wraps the above):
+bashpython3 remote_monitoring.py
+Copy the full telemetry log from PC1 to PC2:
+bashscp pc1_user@192.168.1.50:/home/pc1_user/telemetry_packets.bin ./telemetry_packets_
+Copy the full telemetry log from PC1 to PC2:
+bashscp pc1_user@192.168.1.50:/home/pc1_user/telemetry_packets.bin ./telemetry_packets_
