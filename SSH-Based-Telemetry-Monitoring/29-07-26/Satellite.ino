@@ -1,35 +1,37 @@
-const int LED_PIN = 8;
+const byte LED_PIN = 8;
 
-void setup() {
+void setup()
+{
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, LOW);
 
     Serial.begin(9600);
+
+    Serial.println("SATELLITE READY");
 }
 
-void loop() {
-
-    if (Serial.available() > 0) {
-
+void loop()
+{
+    if (Serial.available() > 0)
+    {
         String command = Serial.readStringUntil('\n');
         command.trim();
 
-        // Flash once when an SSH command is detected
-        if (command == "ACTIVITY") {
-
+        // SSH command activity -> flash once
+        if (command.equalsIgnoreCase("ACTIVITY"))
+        {
             digitalWrite(LED_PIN, HIGH);
             delay(300);
-
             digitalWrite(LED_PIN, LOW);
 
             Serial.println("ACTIVITY_OK");
         }
 
-        // Blink 5 times for the actual BLINK telecommand
-        else if (command == "BLINK") {
-
-            for (int i = 0; i < 5; i++) {
-
+        // Actual remote BLINK command -> blink 5 times
+        else if (command.equalsIgnoreCase("BLINK"))
+        {
+            for (int i = 0; i < 5; i++)
+            {
                 digitalWrite(LED_PIN, HIGH);
                 delay(500);
 
@@ -40,16 +42,27 @@ void loop() {
             Serial.println("SUCCESS");
         }
 
-        else if (command == "ON") {
-
+        // Keep LED ON
+        else if (command.equalsIgnoreCase("ON"))
+        {
             digitalWrite(LED_PIN, HIGH);
+
             Serial.println("LED_ON");
         }
 
-        else if (command == "OFF") {
-
+        // Turn LED OFF
+        else if (command.equalsIgnoreCase("OFF"))
+        {
             digitalWrite(LED_PIN, LOW);
+
             Serial.println("LED_OFF");
+        }
+
+        // Unknown command
+        else
+        {
+            Serial.print("UNKNOWN COMMAND: ");
+            Serial.println(command);
         }
     }
 }
