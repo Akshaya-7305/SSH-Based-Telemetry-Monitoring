@@ -1,0 +1,95 @@
+PC1 — Raspberry Pi
+from machine import UART, Pin
+import time
+
+# UART1
+# GPIO14 = TX
+# GPIO15 = RX
+uart = UART(1, baudrate=9600, tx=Pin(14), rx=Pin(15))
+
+# Send 10 to Arduino Nano
+uart.write("10\n")
+
+print("PC1 sent: 10")
+
+# Wait for response from Nano
+while not uart.any():
+    time.sleep(0.1)
+
+response = uart.readline()
+
+if response:
+    print("PC1 received:", response.decode().strip())
+
+----------
+from machine import UART, Pin
+import time
+
+uart = UART(1, baudrate=9600, tx=Pin(14), rx=Pin(15))
+
+print("Sending 10...")
+uart.write(b"10\n")
+
+time.sleep(1)
+
+if uart.any():
+    data = uart.readline()
+    print("Received:", data)
+else:
+    print("NO RESPONSE")
+
+PC2 - Arduino Nano (Arduino IDE)
+
+void setup() {
+  Serial.begin(9600);
+}
+
+void loop() {
+
+  if (Serial.available()) {
+
+    String received = Serial.readStringUntil('\n');
+    received.trim();
+
+    // Check whether Raspberry Pi sent 10
+    if (received == "10") {
+
+      Serial.println("TEN");
+    }
+  }
+}
+
+-----
+void setup() {
+  Serial.begin(9600);
+}
+
+void loop() {
+  if (Serial.available() > 0) {
+    String data = Serial.readStringUntil('\n');
+    data.trim();
+
+    if (data == "10") {
+      Serial.println("TEN");
+    }
+  }
+}
+-------
+void setup() {
+  Serial.begin(9600);
+}
+
+void loop() {
+  if (Serial.available() > 0) {
+
+    String data = Serial.readStringUntil('\n');
+    data.trim();
+
+    Serial.print("Received: ");
+    Serial.println(data);
+
+    if (data == "10") {
+      Serial.println("TEN");
+    }
+  }
+}
