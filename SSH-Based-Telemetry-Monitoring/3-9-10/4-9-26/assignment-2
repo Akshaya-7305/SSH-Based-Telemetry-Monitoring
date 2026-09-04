@@ -1,0 +1,310 @@
+STEP 1 — Connect Ethernet
+
+Connect the Ethernet cable directly between:
+
+Raspberry Pi (PC1) ↔ Windows PC (PC2)
+
+------------------------------------------------------------------------------
+
+STEP 2 — Configure PC2 (Windows)
+
+On PC2:
+
+Press Windows + R
+Type:
+ncpa.cpl
+Press Enter.
+Find Ethernet.
+Right-click → Properties.
+Select Internet Protocol Version 4 (TCP/IPv4).
+Click Properties.
+Select Use the following IP address.
+
+Enter:
+
+IP address:       192.168.10.2
+Subnet mask:      255.255.255.0
+Default gateway:  leave blank
+
+Leave DNS blank.
+
+Click OK → Close.
+
+Remember
+
+192.168.10.2 belongs to PC2.
+--------------------------------------------------------------------------------------------
+STEP 3 — Configure PC1 (Raspberry Pi)
+
+On the Raspberry Pi, open Terminal.
+
+First check the Ethernet interface:
+
+ip addr show eth0
+
+If you see an existing IP, tell me what it says.
+
+If you want to directly configure the Pi with the required address, we want:
+
+IP address:       192.168.10.1
+Subnet mask:      255.255.255.0
+Default gateway:  none
+
+For now, don't change anything blindly. Run:
+
+ip addr show eth0
+
+and check that the Ethernet interface is eth0.
+-----------------------------------------------------------------------------------
+STEP 4 — Test the connection
+
+Once PC1 is 192.168.10.1 and PC2 is 192.168.10.2, go to the Pi terminal and run:
+
+ping 192.168.10.2
+
+You should see something like:
+
+64 bytes from 192.168.10.2
+64 bytes from 192.168.10.2
+64 bytes from 192.168.10.2
+
+That means:
+
+Pi ↔ PC2 communication is working. ✅
+
+Stop pinging with:
+
+Ctrl + C
+-----------------------------------------------------------------------------------
+STEP 5 — Create the sender program on PC1
+
+Open Thonny on the Raspberry Pi.
+
+Create a new file:
+
+sender.py
+
+Paste:
+
+import socket
+import os
+
+PC2_IP = "192.168.10.2"
+PORT = 5000
+
+FILE_NAME = "program.py"
+
+# Create a Python program to transfer
+program = '''print("Hello from Raspberry Pi!")
+print("File received successfully on PC2.")
+print("The file was transferred byte by byte through Ethernet.")
+'''
+
+with open(FILE_NAME, "w") as file:
+    file.write(program)
+
+print("File created:", FILE_NAME)
+
+# Create TCP socket
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+print("Connecting to PC2...")
+client.connect((PC2_IP, PORT))
+
+print("Connected to PC2.")
+
+# Send file name length
+filename = os.path.basename(FILE_NAME).encode()
+client.send(len(filename).to_bytes(2, "big"))
+
+# Send file name
+client.send(filename)
+
+# Open file in binary mode
+with open(FILE_NAME, "rb") as file:
+
+    while True:
+        byte = file.read(1)
+
+        if not byte:
+            break
+
+        # Send exactly ONE BYTE
+        client.send(byte)
+
+print("File sent byte by byte.")
+
+client.shutdown(socket.SHUT_WR)
+
+# Receive confirmation
+message = client.recv(1024).decode()
+
+print(message)
+
+client.close()
+
+Save it.
+
+⚠️ Don't run it yet.
+-------------------------------------------------------------------------------
+STEP 6 — Create receiver program on PC2
+
+On your Windows PC, create a file called:
+
+receiver.py
+
+You can create it using Notepad.
+
+Paste:
+
+import socket
+import subprocess
+
+HOST = "0.0.0.0"
+PORT = 5000
+
+# Create TCP socket
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+server.bind((HOST, PORT))
+server.listen(1)
+
+print("Waiting for PC1...")
+
+connection, address = server.accept()
+
+print("Connected to PC1:", address)
+
+# Receive filename length
+filename_length = int.from_bytes(connection.recv(2), "big")
+
+# Receive filename
+filename = connection.recv(filename_length).decode()
+
+print("Receiving file:", filename)
+
+received_file = "received_" + filename
+
+# Receive the file byte by byte
+with open(received_file, "wb") as file:
+
+    byte_count = 0
+
+    while True:
+
+        byte = connection.recv(1)
+
+        if not byte:
+            break
+
+        file.write(byte)
+        byte_count += 1
+
+print("File received successfully.")
+print("Total bytes received:", byte_count)
+
+connection.close()
+server.close()
+
+# Execute received Python file
+print("\nExecuting received file...\n")
+
+subprocess.run(["python", received_file])
+
+print("\nProgram execution completed.")
+
+Save it.
+--------------------------------------------------------------------------------
+STEP 7 — Run the receiver FIRST
+
+On PC2, open Command Prompt.
+
+Go to the folder where you saved receiver.py.
+
+For example, if it is on Desktop:
+
+cd Desktop
+
+Then run:
+
+python receiver.py
+
+You should get:
+
+Waiting for PC1...
+Leave this window open.
+---------------------------------------------------------------------------------
+STEP 8 — Run the sender on PC1
+
+Now go back to Thonny on the Raspberry Pi.
+
+Run:
+
+sender.py
+
+The Pi should show:
+
+File created: program.py
+Connecting to PC2...
+Connected to PC2.
+File sent byte by byte.
+---------------------------------------------------------------------------
+STEP 9 — PC2 receives the file
+
+The Windows Command Prompt should now show something like:
+
+Waiting for PC1...
+Connected to PC1: ('192.168.10.1', ...)
+Receiving file: program.py
+File received successfully.
+Total bytes received: 150
+
+Executing received file...
+
+Hello from Raspberry Pi!
+File received successfully on PC2.
+The file was transferred byte by byte through Ethernet.
+
+Program execution completed.
+--------------------------------------------------------------------------------
+how to set 192.168.10.1 on the Raspberry Pi, because that's the part that's probably confusing you.??
+
+On the Raspberry Pi
+
+Open Terminal and run:
+
+sudo nmcli connection show
+
+Look for the Ethernet connection, usually something like Wired connection 1.
+
+Then run:
+
+sudo nmcli connection modify "Wired connection 1" ipv4.method manual ipv4.addresses 192.168.10.1/24 ipv4.gateway "" ipv4.dns ""
+
+Then activate it:
+
+sudo nmcli connection up "Wired connection 1"
+
+Finally, check:
+
+ip addr show eth0
+
+You should see:
+
+inet 192.168.10.1/24
+Then your final IP setup is:
+PC1 — Raspberry Pi
+IP: 192.168.10.1
+Mask: 255.255.255.0
+
+        Ethernet cable
+
+PC2 — Windows
+IP: 192.168.10.2
+Mask: 255.255.255.0
+
+Don't run the commands yet if your connection isn't actually named Wired connection 1. First run:
+
+sudo nmcli connection show
+
+----------------------------------------------------------------------------------
