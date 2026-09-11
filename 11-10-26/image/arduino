@@ -1,0 +1,26 @@
+#pc2..void setup() {
+  Serial.begin(9600);
+}
+
+void loop() {
+  Serial.println("CAPTURE");
+  delay(10000);
+}
+
+----------------------------------------------------
+
+Arduino
+   ↓ USB/Serial
+PC2
+   ↓ receives Arduino trigger/data
+PC2 captures/uses image
+   ↓
+PC2 sends image → PC1 (Raspberry Pi)
+   ↓
+PC1 receives image
+   ↓
+Image identification
+   ↓
+PC1 deletes image
+   ↓
+Repeat every 10 seconds
