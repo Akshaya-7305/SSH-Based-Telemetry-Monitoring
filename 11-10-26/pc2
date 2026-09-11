@@ -1,0 +1,41 @@
+#pc2.
+import socket
+import os
+
+HOST = "0.0.0.0"
+PORT = 5000
+
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind((HOST, PORT))
+server.listen(1)
+
+print("Waiting for PC1...")
+
+while True:
+    connection, address = server.accept()
+
+    print("PC1 connected:", address)
+
+    data = connection.recv(1024).decode()
+
+    print("Received:", data)
+
+    # Create file
+    with open("telemetry.txt", "w") as file:
+        file.write(data)
+
+    print("File created.")
+
+    # Read file
+    with open("telemetry.txt", "r") as file:
+        content = file.read()
+
+    print("File content:", content)
+
+    # Delete file
+    os.remove("telemetry.txt")
+
+    print("File deleted.")
+    print("Waiting for next data...\n")
+
+    connection.close()
