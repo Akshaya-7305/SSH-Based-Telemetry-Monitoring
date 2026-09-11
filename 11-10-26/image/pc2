@@ -1,0 +1,38 @@
+pc2 idle.....import serial
+import socket
+import os
+
+ARDUINO_PORT = "COM3"       # Change if your Arduino uses another COM port
+BAUD_RATE = 9600
+
+PC1_IP = "192.168.1.50"     # Change to Raspberry Pi IP
+PORT = 5000
+
+arduino = serial.Serial(ARDUINO_PORT, BAUD_RATE, timeout=1)
+
+print("PC2 waiting for Arduino...")
+
+while True:
+
+    command = arduino.readline().decode().strip()
+
+    if command == "CAPTURE":
+
+        print("Arduino triggered image transfer")
+
+        filename = "test.jpg"
+
+        if not os.path.exists(filename):
+            print("test.jpg not found!")
+            continue
+
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.connect((PC1_IP, PORT))
+
+        with open(filename, "rb") as image:
+            data = image.read()
+
+        client.sendall(data)
+        client.close()
+
+        print("Image sent from PC2 to PC1")
